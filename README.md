@@ -1,3 +1,5 @@
+This is a fork from <https://github.com/bennettp123/dns.he.net-updater>
+
 ### dns.he.net powershell dynamic dns updater
 
 A very basic updater for dynamic DNS services provided by <http://dns.he.net/>.
@@ -26,3 +28,7 @@ None. :p
 ![Scheduled task settings](https://raw.githubusercontent.com/bennettp123/dns.he.net-updater/master/doc/schedtask-sample1.png)
 
 ## Enjoy!
+
+[UPDATE BY ME]
+
+I changed updater.ps1 to make it to work
