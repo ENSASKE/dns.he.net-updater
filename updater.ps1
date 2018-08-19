@@ -1,39 +1,59 @@
-$currentPath=Split-Path ((Get-Variable MyInvocation -Scope 0).Value).MyCommand.Path
-Import-Module ("{0}\updater-functions.ps1" -f $currentPath)
+$currentPath=Split-Path ((Get-Variable MyInvocation -Scope 0).Value).MyCommand.Path;
+Import-Module ("{0}\updater-functions.ps1" -f $currentPath);
 
-$hostname = "HOSTNAME (fqdn)"
-$password = "PASSWORD"
-$url = "https://dyn.dns.he.net/nic/update?hostname={0}&password={1}" -f $hostname, $password
+$hostname = "YOUR HOST";
+$password = "YOUT PASSWORD";
+$url = "https://dyn.dns.he.net/nic/update?hostname={0}&password={1}" -f $hostname, $password;
 
-$regkey = 'HKCU:\Software\bennettp123\dns.he.updater'
+$regkey = 'HKCU:\Software\dnsupdater\dns.he.updater';
 
 # get oldip from registry
-$oldip = $( (Get-ItemProperty -path $regkey).oldip 2>$null )
+$oldip = $( (Get-ItemProperty -path $regkey).oldip 2>$null );
 if (-not $oldip) { $oldip = "UNKNOWN"; }
 
-Ignore-SLL-Errors
-UseUnsafeHeaderParsing
-$wc = Get-Webclient
+Ignore-SLL-Errors;
+UseUnsafeHeaderParsing;
+$wc = Get-Webclient;
 
 # get newip from checkip.dns.he.net
-$regex = 'Your (Proxy)? IPaddress is : ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\(via ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\)?'
-$myip = $( $wc.DownloadString("http://checkip.dns.he.net") | ForEach-Object {
-  if ($_ -match $regex) {
-    if ($matches[3]) { $matches[3]; } else { $matches[2]; }
-  }
-})
-
-# or, to use a custom IP:
-#$myip = @(Get-IPAddresses | where { $_ -match "10.25.64.*" })[0]
-#$url = "https://dyn.dns.he.net/nic/update?hostname={0}&password={1}&myip={2}" -f $hostname, $password, $myip
+$regex = [regex] "\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b";
+$htmltext = $wc.DownloadString("http://checkip.dns.he.net");
+$myip = $regex.Matches($htmltext) | %{ $_.value; }
 
 # quit if oldip == newip
 if ($myip -eq $oldip) { exit 0; }
 
+# if you want to test
+#$myip = "1.1.1.1";
+
+$url = "$url&myip=$myip";
+
 # send newip to dyn.dns.he.net; save to registry if successful
-$wc.DownloadString($url) | ForEach-Object {
-  if ($_ -match '(good|nochg) (.*)') { $matches[2]; }
-} | ForEach-Object { 
-  New-Item -Path $regkey -Type directory -Force
-  Set-ItemProperty -path $regkey -name oldip -value $_ 
-} >$null 2>&1
+$htmlResponse = $wc.DownloadString($url);
+echo $htmlResponse;
+
+if ($htmlResponse -Match "good"){
+	echo "ip updated";
+	
+	New-Item -Path $regkey -Type directory -Force;
+	Set-ItemProperty -path $regkey -name oldip -value $myip;
+	
+	echo "script finished";
+	
+	$date = date;
+	$msg = "$date IP changed, old: $oldip actual $myip response: $htmlResponse";
+	$msg | Add-Content 'log.txt';
+} else { # nochg or badautentication or others msg
+	echo "Error updating IP";
+	$date = date;
+	$msg = "$date Cannot change ip, old: $oldip actual $myip response: $htmlResponse";
+	$msg | Add-Content 'log.txt';
+}
+
+# uncomment if you want to see the msg in powershell
+
+#echo "my url: $url";
+#echo "my actual ip (remote): $myip";
+#echo "my old ip (register): $oldip";
+
+Read-Host -Prompt "Press Enter to exit";
