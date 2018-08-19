@@ -56,4 +56,4 @@ if ($htmlResponse -Match "good"){
 #echo "my actual ip (remote): $myip";
 #echo "my old ip (register): $oldip";
 
-Read-Host -Prompt "Press Enter to exit";
+#Read-Host -Prompt "Press Enter to exit";
